@@ -21,7 +21,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,6 +45,15 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+//#define DWT_CTRL    (*(volatile uint32_t*)0xE0001000)
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+
+static void task1_handler(void* parameters);
+static void task2_handler(void* parameters);
+
+
+//extern  void SEGGER_UART_init(uint32_t);
 
 /* USER CODE END PV */
 
@@ -55,6 +67,8 @@ static void MX_GPIO_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+xSemaphoreHandle printf_mutex;
+
 
 /* USER CODE END 0 */
 
@@ -66,7 +80,10 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+  TaskHandle_t task1_handle;
+  TaskHandle_t task2_handle;
 
+  BaseType_t status;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -91,7 +108,29 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
+  printf("Run Code Test\n");
+  printf_mutex = xSemaphoreCreateMutex();
+  if( printf_mutex != NULL )
+   {
+	  printf("Semaphore created Success.\n");
+         /* The semaphore was created successfully and
+            can be used. */
+   }
+//  DWT_CTRL |= ( 1 << 0);
 
+  //SEGGER_UART_init(500000);
+
+  //SEGGER_SYSVIEW_Conf();
+
+  status = xTaskCreate(task1_handler, "Task-1", 200, "Hello world from Task-1", 2, &task1_handle);
+
+  configASSERT(status == pdPASS);
+
+  status = xTaskCreate(task2_handler, "Task-2", 200, "Hello world from Task-2", 2, &task2_handle);
+
+  configASSERT(status == pdPASS);
+  //start the freeRTOS scheduler
+  vTaskStartScheduler();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -236,6 +275,39 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+static void task1_handler(void* parameters)
+{
+
+	//char msg[100];
+
+	while(1)
+	{
+		//snprintf(msg,100,"%s\n", (char*)parameters);
+    xSemaphoreTake(printf_mutex, portMAX_DELAY);
+		printf("%s\n", (char*)parameters);
+    xSemaphoreGive(printf_mutex);
+		//SEGGER_SYSVIEW_PrintfTarget(msg);
+		taskYIELD();
+	}
+
+}
+
+
+static void task2_handler(void* parameters)
+{
+	//char msg[100];
+	while(1)
+	{
+		//snprintf(msg,100,"%s\n", (char*)parameters);
+    xSemaphoreTake(printf_mutex, portMAX_DELAY);
+		printf("%s\n", (char*)parameters);
+    xSemaphoreGive(printf_mutex);
+		//SEGGER_SYSVIEW_PrintfTarget(msg);
+		taskYIELD();
+	}
+
+}
+
 
 /* USER CODE END 4 */
 
